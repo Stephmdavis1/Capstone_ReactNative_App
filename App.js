@@ -1,20 +1,43 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import AppNavigator from './navigation/AppNavigator';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { loadFonts } from './constants/fonts';
+import SplashScreen from './screens/SplashScreen';
+
+const AppContent = () => {
+  const { state, authActions } = useAuth();
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [splashTimeElapsed, setSplashTimeElapsed] = useState(false);
+
+  async function loadResourcesAndDataAsync() {
+    try {
+      await loadFonts();
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setFontsLoaded(true);
+    }
+  }
+
+  useEffect(() => {
+    loadResourcesAndDataAsync();
+    authActions.setLoading(true);
+    authActions.checkOnboard({});
+  }, [authActions]);
+
+  if (!splashTimeElapsed || !fontsLoaded || state.isLoading) {
+    return <SplashScreen onReady={() => setSplashTimeElapsed(true)} />;
+  }
+
+  return <AppNavigator isOnboardingCompleted={state.isOnboardingCompleted} />;
+};
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+
