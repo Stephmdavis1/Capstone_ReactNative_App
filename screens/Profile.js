@@ -1,246 +1,283 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Text, Image, Button, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  TextInput,
+  Text,
+  Image,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import { MaskedTextInput } from 'react-native-mask-text';
 import * as ImagePicker from 'expo-image-picker';
 import Checkbox from 'expo-checkbox';
 import colors from '../constants/colors';
-import { fonts } from '../constants/fonts';
-
+import { Ionicons } from '@expo/vector-icons';
 
 const Profile = () => {
   const { state, authActions } = useAuth();
 
   const [profile, setProfile] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phoneNumber: '',
-    isNotiChecked: false
+    orderStatuses: true,
+    passwordChanges: true,
+    specialOffers: true,
+    newsletter: true,
   });
+
   const [image, setImage] = useState(null);
 
-  const handleInputChange = (name, value) => {
-    setProfile(prev => ({ ...prev, [name]: value }));
+  const handleInputChange = (key, value) => {
+    setProfile((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const loadData = async () => {
+    const storedProfile = await AsyncStorage.getItem('profile');
+    const storedImage = await AsyncStorage.getItem('imageUri');
+    if (storedProfile) setProfile(JSON.parse(storedProfile));
+    if (storedImage) setImage(storedImage);
   };
 
   useEffect(() => {
-    const loadProfile = async () => {
-      const storedProfile = await AsyncStorage.getItem('profile');
-      const storedImage = await AsyncStorage.getItem('imageUri');
-
-      if (storedProfile) { 
-        setProfile(JSON.parse(storedProfile))
-        
-      };
-
-      if (storedImage) {
-        setImage(storedImage)
-      };
-
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert("Sorry, we need camera roll permissions to make this work!");
-      }
-
-    };
-    loadProfile();
+    loadData();
   }, []);
-
-  const getInitials = (name) => {
-    return name ? name.substring(0, 2).toUpperCase() : '';
-  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [4, 3],
       quality: 1,
+      aspect: [1, 1],
     });
 
-    if (!result.cancelled && result.assets && result.assets.length > 0) {
-
-        const uri = result.assets[0].uri; // Access URI from the first asset
-        setImage(uri);
-        
-    } else {
-        // Log different scenarios for debugging
-        if (result.cancelled) {
-            console.log("Image picking was canceled.");
-        } else if (!result.assets || result.assets.length === 0) {
-            console.log("No assets found in the result.");
-        } else {
-            console.log("An unexpected scenario occurred.");
-        }
+    if (!result.cancelled && result.assets.length > 0) {
+      setImage(result.assets[0].uri);
     }
+  };
+
+  const removeImage = () => {
+    setImage(null);
   };
 
   const saveProfile = async () => {
     await AsyncStorage.setItem('profile', JSON.stringify(profile));
-    await AsyncStorage.setItem('imageUri', image);
-    alert('Profile saved successfully!');
+    if (image) await AsyncStorage.setItem('imageUri', image);
+    alert('Changes saved!');
   };
-  
+
+  const discardChanges = () => {
+    loadData();
+  };
+
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.profileHeader}>
-        {image ? 
-          (<Image source={{ uri: image }} style={styles.image} />) : (
-          (<View style={styles.initialsPlaceholder}>
-            <Text style={styles.initialsText}>{getInitials(profile.name)}</Text>
-          </View>)
+      <Text style={styles.sectionTitle}>Personal information</Text>
+
+      {/* Avatar Section */}
+      <View style={styles.avatarRow}>
+        {image ? (
+          <Image source={{ uri: image }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Ionicons name="person" size={60} color="#999" />
+          </View>
         )}
-        <TouchableOpacity style={[styles.button, styles.pickImageButton]} onPress={pickImage}>
-          <Text style={styles.buttonImageText}>Pick an Image</Text>
-        </TouchableOpacity>
+        <View style={styles.avatarButtons}>
+          <TouchableOpacity style={styles.changeButton} onPress={pickImage}>
+            <Text style={styles.changeButtonText}>Change</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.removeButton} onPress={removeImage}>
+            <Text style={styles.removeButtonText}>Remove</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.inputLabel}>Name</Text>
-        <TextInput
-          value={profile.name}
-          onChangeText={(text) => handleInputChange('name', text)}
-          placeholder="Enter name"
-          style={styles.input}
-        />
+      {/* Input Fields */}
+      <Text style={styles.label}>First name</Text>
+      <TextInput
+        value={profile.firstName}
+        style={styles.input}
+        onChangeText={(text) => handleInputChange('firstName', text)}
+      />
 
-        <Text style={styles.inputLabel}>Email</Text>
-        <TextInput
-          value={profile.email}
-          onChangeText={(text) => handleInputChange('email', text)}
-          placeholder="Enter email"
-          style={styles.input}
-        />
+      <Text style={styles.label}>Last name</Text>
+      <TextInput
+        value={profile.lastName}
+        style={styles.input}
+        onChangeText={(text) => handleInputChange('lastName', text)}
+      />
 
-        <Text style={styles.inputLabel}>Phone Number</Text>
-        <MaskedTextInput
-          mask="(999) 999-9999"
-          value={profile.phoneNumber}
-          onChangeText={(text) => handleInputChange('phoneNumber', text)}
-          style={styles.input}
-          placeholder="(123) 456 7890"
-          keyboardType="numeric"
-        />
-        <View style={styles.checkboxContainer}>
-          <Text style={styles.checkboxLabel}>Subscribe to Notifications </Text>
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        value={profile.email}
+        style={styles.input}
+        onChangeText={(text) => handleInputChange('email', text)}
+        keyboardType="email-address"
+      />
+
+      <Text style={styles.label}>Phone number</Text>
+      <MaskedTextInput
+        style={styles.input}
+        mask="(999) 999-9999"
+        value={profile.phoneNumber}
+        onChangeText={(text) => handleInputChange('phoneNumber', text)}
+        keyboardType="phone-pad"
+      />
+
+      {/* Email Notifications */}
+      <Text style={styles.sectionTitle}>Email notifications</Text>
+
+      {[
+        { key: 'orderStatuses', label: 'Order statuses' },
+        { key: 'passwordChanges', label: 'Password changes' },
+        { key: 'specialOffers', label: 'Special offers' },
+        { key: 'newsletter', label: 'Newsletter' },
+      ].map(({ key, label }) => (
+        <View key={key} style={styles.checkboxRow}>
           <Checkbox
-            style={styles.checkbox}
-            value={profile.isNotiChecked}
-            onValueChange={(value) => handleInputChange('isNotiChecked', value)}
-            color={profile.isNotiChecked ? colors.primaryGreen : undefined}
+            value={profile[key]}
+            onValueChange={(val) => handleInputChange(key, val)}
+            color={profile[key] ? colors.primaryGreen : undefined}
           />
+          <Text style={styles.checkboxLabel}>{label}</Text>
         </View>
-      </View>  
+      ))}
 
-        <TouchableOpacity
-          style={[styles.button, styles.saveButton]}
-          onPress={saveProfile}
-        >
-          <Text style={styles.buttonText}>Save Changes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, styles.logoutButton]}
-          onPress={authActions.logout}
-        >
-          <Text style={styles.buttonText}>Logout</Text>
-        </TouchableOpacity>
+      {/* Buttons */}
+      <TouchableOpacity style={styles.logoutButton} onPress={authActions.logout}>
+        <Text style={styles.logoutButtonText}>Log out</Text>
+      </TouchableOpacity>
 
+      <View style={styles.footerButtons}>
+        <TouchableOpacity style={styles.discardButton} onPress={discardChanges}>
+          <Text style={styles.discardText}>Discard changes</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
+          <Text style={styles.saveText}>Save changes</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  
   container: {
-    flex: 1,
-    paddingLeft: 20,
-    paddingRight: 20,
-    paddingTop: 0,
-    backgroundColor: colors.backgroundOnboarding,
+    padding: 20,
+    backgroundColor: '#fff',
   },
-  profileHeader: {
-    alignItems: 'center',
-    marginVertical: 20,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 15,
   },
-  image: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  initialsPlaceholder: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initialsText: {
-    fontSize: 50,
-    color: '#000',
-    fontFamily: fonts.bold,
-  },
-  section: {
-    marginTop: 0,
-  },
-  inputLabel: {
-    fontSize: 20,
-    fontFamily: fonts.karla.bold,
-    color: colors.textLight,
+  label: {
+    fontSize: 14,
+    marginBottom: 5,
+    fontWeight: '500',
   },
   input: {
-    fontSize: 16,
-    height: 50,
-    borderRadius: 10,
+    borderColor: '#ccc',
     borderWidth: 1,
-    paddingHorizontal: 10,
-    marginVertical: 5,
-    marginBottom: 20,
-    backgroundColor: colors.background,
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 15,
+    fontSize: 16,
   },
-  checkboxContainer: {
+  avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 25,
   },
-  checkbox: {
-    marginLeft: 10,
-    borderColor: "#ccc"
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
-  checkboxLabel: {
-    fontSize: 18,
-    fontFamily: fonts.karla.bold,
-    color: "#ccc",
-  },
-  button: {
-    padding: 10,
-    borderRadius: 10,
+  avatarPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#eee',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 10,
   },
-  buttonText: {
-    color: colors.backgroundOnboarding,
-    fontFamily: fonts.karla.bold,
-    fontSize: 18,
+  avatarButtons: {
+    marginLeft: 20,
   },
-  buttonImageText: {
-    color: colors.text,
-    fontFamily: fonts.karla.bold,
-    fontSize: 18,
+  changeButton: {
+    backgroundColor: colors.backgroundOnboarding,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginBottom: 8,
   },
-  pickImageButton: {
-    backgroundColor: colors.primaryYellow,
+  changeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
-  saveButton: {
-    backgroundColor: colors.primaryYellow,
+  removeButton: {
+    borderColor: '#aaa',
+    borderWidth: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  removeButtonText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  checkboxLabel: {
+    marginLeft: 10,
+    fontSize: 16,
   },
   logoutButton: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.primaryYellow,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: 6,
+    marginVertical: 20,
   },
-
+  logoutButtonText: {
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  footerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  discardButton: {
+    borderColor: colors.text,
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 6,
+    flex: 1,
+    marginRight: 10,
+    alignItems: 'center',
+  },
+  discardText: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: colors.backgroundOnboarding,
+    padding: 12,
+    borderRadius: 6,
+    flex: 1,
+    alignItems: 'center',
+  },
+  saveText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
 });
-
 
 export default Profile;
